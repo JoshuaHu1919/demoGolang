@@ -1,0 +1,8 @@
+*.exe
+/mysql
+/configs/config.yml
+/runner-build
+/.idea
+/tmp
+/log
+/.vscode

@@ -1,0 +1,76 @@
+stages:
+  - build
+  - deploy_dev
+  - deploy_sit
+  - deploy_nc
+
+variables:         
+  deploy_path: "/data/eyeInTheSky/deployment"
+
+build:
+  stage: build
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY  
+    - docker build -f deployments/syncdata.Dockerfile -t  $CI_REGISTRY/backend/allproductsdk/eis/syncdataservice:$CI_COMMIT_TAG .
+    - docker push $CI_REGISTRY/backend/allproductsdk/eis/syncdataservice:$CI_COMMIT_TAG    
+  tags:
+    - eis-backend
+  only:
+    - /^sync_[0-9]+(?:.[0-9]+)+(?:.[0-9]+)+(?:.[0-9]+)([_][0-9])?$/
+
+deploy_nc:
+  stage: deploy_nc
+  script:
+    - cd $deploy_path
+    - export SYNCDATA_TAG=$CI_COMMIT_TAG
+    - docker-compose rm -f -s syncdata
+    - docker-compose up -d syncdata
+  tags:
+    - eis-backend
+  only:
+    - /^sync_[0-9]+(?:.[0-9]+)+(?:.[0-9]+)+(?:.[0-9]+)([_][0-9])?$/
+  when: manual
+
+deploy_dev:
+  variables:
+    GIT_STRATEGY: clone
+  stage: deploy_dev
+  only:
+    - dev
+  environment:
+    name: dev
+  tags:
+    - dm3-eis-dev
+  before_script:
+    - echo "before_script"
+  script:
+    - |
+       if  test -n  "$(docker ps -a -q --filter "name=syncdata")" ; then
+          docker rm -f $(docker ps -a -q --filter "name=syncdata")
+       fi
+    - docker build -t syncdata -f ./deployments/syncdata.Dockerfile  .
+    - docker run -d --name=syncdata  -e TZ="Asia/Taipei" -p 6007:6007 --restart=always syncdata
+  after_script:
+    - echo "after_script"
+
+deploy_sit:
+  variables:
+    GIT_STRATEGY: clone
+  stage: deploy_sit
+  only:
+    - sit
+  environment:
+    name: sit
+  tags:
+    - dm3-eis-sit
+  before_script:
+    - echo "before_script"
+  script:
+    - |
+       if  test -n  "$(docker ps -a -q --filter "name=syncdata")" ; then
+          docker rm -f $(docker ps -a -q --filter "name=syncdata")
+       fi
+    - docker build -t syncdata -f ./deployments/syncdata.Dockerfile  . --build-arg env=sit
+    - docker run -d --name=syncdata  -p 6007:6007 --restart=always syncdata
+  after_script:
+    - echo "after_script"

@@ -1,0 +1,14 @@
+env: local
+syncData_platform:
+  platform: "dfw"
+  http_bind: ":6007"
+  notifier_center:
+    rabbit_mq_addr: "192.168.13.74:5672"
+    virtual_hosts: "dev_GameRecords"
+    username: "admin"
+    password: "admin"
+  mysql:
+    address: "192.168.23.105:3306"
+    username: "root"
+    password: "123456"
+    database: "KYDB_NEW"
